@@ -6,7 +6,7 @@ ASSETS=("EURUSD" "GBPUSD" "AUDUSD" "USDJPY" "USDCHF" "XAUUSD" "BTCUSD" "ETHUSD" 
 # Loop through each asset
 for ASSET in "${ASSETS[@]}"; do
     echo "🔹 Fetching candles for $ASSET ..."
-    curl -s -X GET "http://172.31.35.179:8000/candles?symbol=$ASSET&timeframe=M1&count=300" \
+    curl -s -X GET "http://44.242.196.239:8000/candles?symbol=$ASSET&timeframe=M1&count=300" \
         -o "data/$ASSET.json"
 
     echo "⚡ Running bruteforce for $ASSET ..."

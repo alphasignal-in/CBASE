@@ -3,7 +3,7 @@ import json, time, requests
 import pandas as pd
 from datetime import datetime, timedelta
 
-SERVER_URL = "http://172.31.35.179:8000"
+SERVER_URL = "http://44.242.196.239:8000"
 
 # ----------------------------
 # Load strategy

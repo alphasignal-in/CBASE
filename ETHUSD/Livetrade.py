@@ -47,22 +47,22 @@ def close_trade(ticket):
     except Exception as e:
         return {"error": str(e)}
 
-def get_balance():
+def get_account_info():
     try:
         resp = requests.get(f"{SERVER_URL}/balance", timeout=10)
         if resp.status_code == 200:
             return resp.json()
     except Exception as e:
-        print(f"⚠️ Error fetching balance: {e}")
+        print(f"⚠️ Error fetching account info: {e}")
     return None
 
 # ----------------------------
 # Trade tracker
 # ----------------------------
 flagged_trades = {}  # {ticket: {"open_time": datetime}}
-initial_balance = get_balance()
-if initial_balance:
-    print(f"💰 Initial Balance = {initial_balance['balance']} {initial_balance['currency']}")
+initial_info = get_account_info()
+if initial_info:
+    print(f"💰 Initial Balance = {initial_info['balance']} {initial_info['currency']}")
 
 # ----------------------------
 # Live trading loop
@@ -76,19 +76,29 @@ while True:
         if not last_strategy_reload or (datetime.utcnow() - last_strategy_reload).seconds >= 60:
             strategy = load_strategy()
             last_strategy_reload = datetime.utcnow()
+
+            # from strategy.json
             winrate = strategy.get("winrate", 0)
             wins = strategy.get("wins", 0)
-            balance = get_balance()
-            equity_guard = False
+            symbol = strategy.get("symbol")
 
-            # equity guard check
-            if balance:
-                floating_dd = balance["balance"] - balance["equity"]
+            # from real MT5 account
+            acc_info = get_account_info()
+            acc_balance = acc_info["balance"] if acc_info else 0
+            acc_equity = acc_info["equity"] if acc_info else 0
+
+            # equity guard
+            equity_guard = False
+            if acc_info:
+                floating_dd = acc_balance - acc_equity
                 if floating_dd > 50:  # 🔒 pause if drawdown > $50
                     equity_guard = True
 
-            can_trade = winrate > 55 and wins >= 10 and balance and balance["balance"] > 1600 and not equity_guard
-            print(f"🔄 Strategy reloaded. can_trade={can_trade} | winrate={winrate:.2f}% | wins={wins} | balance={balance['balance'] if balance else 'N/A'} | equity_guard={equity_guard}")
+            can_trade = winrate > 55 and wins >= 10 and acc_balance > 1600 and not equity_guard
+
+            print(f"🔄 Strategy reloaded. can_trade={can_trade} | winrate={winrate:.2f}% | "
+                  f"wins={wins} | account_balance={acc_balance} | equity={acc_equity} | "
+                  f"equity_guard={equity_guard}")
 
         # skip new trades if cannot trade
         if not strategy or not can_trade:
@@ -114,7 +124,6 @@ while True:
         # ----------------------------
         # Get candles
         # ----------------------------
-        symbol = strategy.get("symbol")
         sl_pct = strategy.get("sl_pct", 0.005)
         tp_pct = strategy.get("tp_pct", 0.01)
         lot = 0.005 if any(x in symbol.upper() for x in ["BTC", "ETH", "XAU"]) else 0.05

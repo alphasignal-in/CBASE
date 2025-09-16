@@ -2,7 +2,7 @@
 import json, time, requests
 import pandas as pd
 
-SERVER_URL = "http://172.31.35.179:8000"  # MT5 server
+SERVER_URL = "http://44.242.196.239:8000"  # MT5 server
 
 # ----------------------------
 # Load strategy

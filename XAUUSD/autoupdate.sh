@@ -6,7 +6,7 @@ do
     ASSET=$(basename "$PWD")
     echo "$(date): Fetching candles for $ASSET..."
 
-    curl -s -X GET "http://172.31.35.179:8000/candles?symbol=$ASSET&timeframe=M1&count=300" \
+    curl -s -X GET "http://44.242.196.239:8000/candles?symbol=$ASSET&timeframe=M1&count=300" \
         -o "$ASSET.json"
 
     # run compiled bruteforce to generate strategy.json
