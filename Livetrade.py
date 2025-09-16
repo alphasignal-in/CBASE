@@ -76,19 +76,26 @@ while True:
         if not last_strategy_reload or (datetime.utcnow() - last_strategy_reload).seconds >= 60:
             strategy = load_strategy()
             last_strategy_reload = datetime.utcnow()
+
             winrate = strategy.get("winrate", 0)
+            if winrate <= 1:  # sometimes it's in decimal
+                winrate *= 100
+
             wins = strategy.get("wins", 0)
-            balance = get_balance()
+            acc_info = get_balance()
             equity_guard = False
+            acc_balance = acc_info["balance"] if acc_info else 0
+            acc_equity = acc_info["equity"] if acc_info else 0
 
             # equity guard check
-            if balance:
-                floating_dd = balance["balance"] - balance["equity"]
+            if acc_info:
+                floating_dd = acc_balance - acc_equity
                 if floating_dd > 50:  # 🔒 pause if drawdown > $50
                     equity_guard = True
 
-            can_trade = winrate > 55 and wins >= 10 and balance and balance["balance"] > 1600 and not equity_guard
-            print(f"🔄 Strategy reloaded. can_trade={can_trade} | winrate={winrate:.2f}% | wins={wins} | balance={balance['balance'] if balance else 'N/A'} | equity_guard={equity_guard}")
+            can_trade = winrate > 55 and wins >= 7 and acc_balance > 1600 and not equity_guard
+            print(f"🔄 Strategy reloaded. can_trade={can_trade} | winrate={winrate:.2f}% | wins={wins} | "
+                  f"balance={acc_balance} | equity={acc_equity} | equity_guard={equity_guard}")
 
         # skip new trades if cannot trade
         if not strategy or not can_trade:
