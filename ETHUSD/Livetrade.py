@@ -87,7 +87,7 @@ while True:
                 if floating_dd > 50:  # 🔒 pause if drawdown > $50
                     equity_guard = True
 
-            can_trade = winrate > 50 and wins >= 7 and balance and balance["balance"] > 1400 and not equity_guard
+            can_trade = winrate > 55 and wins >= 10 and balance and balance["balance"] > 1600 and not equity_guard
             print(f"🔄 Strategy reloaded. can_trade={can_trade} | winrate={winrate:.2f}% | wins={wins} | balance={balance['balance'] if balance else 'N/A'} | equity_guard={equity_guard}")
 
         # skip new trades if cannot trade
@@ -117,7 +117,7 @@ while True:
         symbol = strategy.get("symbol")
         sl_pct = strategy.get("sl_pct", 0.005)
         tp_pct = strategy.get("tp_pct", 0.01)
-        lot = 0.01 if any(x in symbol.upper() for x in ["BTC", "ETH", "XAU"]) else 0.1
+        lot = 0.005 if any(x in symbol.upper() for x in ["BTC", "ETH", "XAU"]) else 0.05
 
         url = f"{SERVER_URL}/candles?symbol={symbol}&timeframe=M1&count=200"
         resp = requests.get(url, timeout=10)

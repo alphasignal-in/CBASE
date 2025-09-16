@@ -87,7 +87,7 @@ while True:
                 if floating_dd > 50:  # 🔒 pause if drawdown > $50
                     equity_guard = True
 
-            can_trade = winrate > 50 and wins >= 7 and balance and balance["balance"] > 1400 and not equity_guard
+            can_trade = winrate > 55 and wins >= 10 and balance and balance["balance"] > 1600 and not equity_guard
             print(f"🔄 Strategy reloaded. can_trade={can_trade} | winrate={winrate:.2f}% | wins={wins} | balance={balance['balance'] if balance else 'N/A'} | equity_guard={equity_guard}")
 
         # skip new trades if cannot trade
