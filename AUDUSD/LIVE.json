@@ -1,0 +1,15 @@
+{
+  "balance": 960.0,
+  "ema_fast": 5,
+  "ema_slow": 21,
+  "rsi_period": 14,
+  "rsi_buy": 50,
+  "rsi_sell": 60,
+  "sl_pct": 0.001,
+  "tp_pct": 0.001,
+  "wins": 4,
+  "losses": 6,
+  "trades": 10,
+  "winrate": 40.0,
+  "symbol": "AUDUSD"
+}

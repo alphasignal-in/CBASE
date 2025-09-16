@@ -1,0 +1,15 @@
+{
+  "balance": 2080.0,
+  "ema_fast": 12,
+  "ema_slow": 50,
+  "rsi_period": 7,
+  "rsi_buy": 40,
+  "rsi_sell": 50,
+  "sl_pct": 0.005,
+  "tp_pct": 0.01,
+  "wins": 31,
+  "losses": 8,
+  "trades": 39,
+  "winrate": 79.48717948717949,
+  "symbol": "BTCUSD"
+}

@@ -1,0 +1,15 @@
+{
+  "balance": 3240.0,
+  "ema_fast": 5,
+  "ema_slow": 50,
+  "rsi_period": 7,
+  "rsi_buy": 40,
+  "rsi_sell": 50,
+  "sl_pct": 0.005,
+  "tp_pct": 0.02,
+  "wins": 29,
+  "losses": 4,
+  "trades": 33,
+  "winrate": 87.87878787878788,
+  "symbol": "ETHUSD"
+}

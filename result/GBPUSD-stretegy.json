@@ -1,0 +1,15 @@
+{
+  "balance": 1840.0,
+  "ema_fast": 5,
+  "ema_slow": 50,
+  "rsi_period": 14,
+  "rsi_buy": 40,
+  "rsi_sell": 50,
+  "sl_pct": 0.0005,
+  "tp_pct": 0.001,
+  "wins": 22,
+  "losses": 2,
+  "trades": 24,
+  "winrate": 91.66666666666666,
+  "symbol": "GBPUSD"
+}

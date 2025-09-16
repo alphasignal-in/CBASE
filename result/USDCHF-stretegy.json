@@ -1,0 +1,15 @@
+{
+  "balance": 980.0,
+  "ema_fast": 9,
+  "ema_slow": 30,
+  "rsi_period": 7,
+  "rsi_buy": 50,
+  "rsi_sell": 60,
+  "sl_pct": 0.001,
+  "tp_pct": 0.001,
+  "wins": 6,
+  "losses": 7,
+  "trades": 13,
+  "winrate": 46.15384615384615,
+  "symbol": "USDCHF"
+}

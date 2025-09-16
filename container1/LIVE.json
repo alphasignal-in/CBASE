@@ -1,0 +1,15 @@
+{
+  "balance": 3120.0,
+  "ema_fast": 12,
+  "ema_slow": 50,
+  "rsi_period": 14,
+  "rsi_buy": 50,
+  "rsi_sell": 60,
+  "sl_pct": 0.0005,
+  "tp_pct": 0.001,
+  "wins": 54,
+  "losses": 2,
+  "trades": 56,
+  "winrate": 96.42857142857143,
+  "symbol": "EURUSD"
+}

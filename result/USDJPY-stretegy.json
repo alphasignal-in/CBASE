@@ -1,0 +1,15 @@
+{
+  "balance": 980.0,
+  "ema_fast": 5,
+  "ema_slow": 21,
+  "rsi_period": 14,
+  "rsi_buy": 40,
+  "rsi_sell": 60,
+  "sl_pct": 0.001,
+  "tp_pct": 0.001,
+  "wins": 0,
+  "losses": 1,
+  "trades": 1,
+  "winrate": 0.0,
+  "symbol": "USDJPY"
+}

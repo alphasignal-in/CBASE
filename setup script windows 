@@ -1,0 +1,20 @@
+ python -m uvicorn server:app --host 0.0.0.0 --port 8000
+
+  python -m pip install fastapi uvicorn[standard] MetaTrader5 pandas numpy python-multipart
+
+#1 INSTALL CHROME
+   $LocalTempDir = $env:TEMP; $ChromeInstaller = "ChromeInstaller.exe"; (new-object    System.Net.WebClient).DownloadFile('http://dl.google.com/chrome/install/375.126/chrome_installer.exe', "$LocalTempDir\$ChromeInstaller"); & "$LocalTempDir\$ChromeInstaller" /silent /install; $Process2Monitor =  "ChromeInstaller"; Do { $ProcessesFound = Get-Process | ?{$Process2Monitor -contains $_.Name} | Select-Object -ExpandProperty Name; If ($ProcessesFound) { "Still running: $($ProcessesFound -join ', ')" | Write-Host; Start-Sleep -Seconds 2 } else { rm "$LocalTempDir\$ChromeInstaller" -ErrorAction SilentlyContinue -Verbose } } Until (!$ProcessesFound)
+#2 install metatrader5
+#3 run metatrader5
+#4 install python3.9
+#5
+  python -m pip install fastapi uvicorn[standard] MetaTrader5 pandas numpy python-multipart
+# 6 create server.py file in downloads
+# run server
+# 7 allow 8000 port in firewall 
+New-NetFirewallRule -DisplayName "Allow HTTP 8000" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8000
+
+8# run app 
+ python -m uvicorn server:app --host 0.0.0.0 --port 8000
+
+
