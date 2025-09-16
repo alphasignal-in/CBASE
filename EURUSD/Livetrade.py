@@ -117,7 +117,7 @@ while True:
         symbol = strategy.get("symbol")
         sl_pct = strategy.get("sl_pct", 0.005)
         tp_pct = strategy.get("tp_pct", 0.01)
-        lot = 0.01 if any(x in symbol.upper() for x in ["BTC", "ETH", "XAU"]) else 0.1
+        lot = 0.005 if any(x in symbol.upper() for x in ["BTC", "ETH", "XAU"]) else 0.05
 
         url = f"{SERVER_URL}/candles?symbol={symbol}&timeframe=M1&count=200"
         resp = requests.get(url, timeout=10)
