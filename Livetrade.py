@@ -1,19 +1,48 @@
 #!/usr/bin/env python3
-import json, time, requests
+import json, time, requests, sys
 import pandas as pd
 from datetime import datetime, timedelta
 
 SERVER_URL = "http://ec2-44-242-196-239.us-west-2.compute.amazonaws.com:8000"
 
 # ----------------------------
-# Load strategy each minute
+# CLI flag for auto-closing trades
+# ----------------------------
+AUTO_CLOSE = True
+if len(sys.argv) > 1 and sys.argv[1].lower() in ("false", "0", "no"):
+    AUTO_CLOSE = False
+print(f"⚙️ Auto-close trades enabled: {AUTO_CLOSE}")
+
+# ----------------------------
+# Global state
+# ----------------------------
+flagged_trades = {}  # {ticket: {"open_time": datetime}}
+last_candle_time = None
+trade_summary = {
+    "initial_balance": 1000,
+    "total_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "balance": 1000
+}
+
+# ----------------------------
+# Save trade summary
+# ----------------------------
+def save_summary():
+    with open("summary.json", "w") as f:
+        json.dump(trade_summary, f, indent=2)
+
+# ----------------------------
+# Reload strategy
 # ----------------------------
 def load_strategy():
     try:
         with open("LIVE.json") as f:
-            return json.load(f)
+            strategy = json.load(f)
+        return strategy
     except Exception as e:
-        print(f"⚠️ Could not load LIVE.json: {e}")
+        print(f"⚠️ Error loading strategy.json: {e}")
         return {}
 
 # ----------------------------
@@ -29,7 +58,7 @@ def calc_rsi(series, period=14):
     return 100 - (100 / (1 + rs))
 
 # ----------------------------
-# Helpers
+# Helper functions
 # ----------------------------
 def check_positions():
     try:
@@ -47,91 +76,38 @@ def close_trade(ticket):
     except Exception as e:
         return {"error": str(e)}
 
-def get_account_info():
-    try:
-        resp = requests.get(f"{SERVER_URL}/balance", timeout=10)
-        if resp.status_code == 200:
-            return resp.json()
-    except Exception as e:
-        print(f"⚠️ Error fetching account info: {e}")
-    return None
-
 # ----------------------------
-# Trade tracker
+# Main Loop
 # ----------------------------
-flagged_trades = {}  # {ticket: {"open_time": datetime}}
-initial_info = get_account_info()
-if initial_info:
-    print(f"💰 Initial Balance = {initial_info['balance']} {initial_info['currency']}")
-
-# ----------------------------
-# Live trading loop
-# ----------------------------
-last_strategy_reload = None
-strategy = {}
+pos_check_counter = 0
 
 while True:
     try:
-        # reload strategy every minute
-        if not last_strategy_reload or (datetime.utcnow() - last_strategy_reload).seconds >= 60:
-            strategy = load_strategy()
-            last_strategy_reload = datetime.utcnow()
-
-            # from strategy.json
-            winrate = strategy.get("winrate", 0)
-            wins = strategy.get("wins", 0)
-            symbol = strategy.get("symbol")
-
-            # from real MT5 account
-            acc_info = get_account_info()
-            acc_balance = acc_info["balance"] if acc_info else 0
-            acc_equity = acc_info["equity"] if acc_info else 0
-
-            # equity guard
-            equity_guard = False
-            if acc_info:
-                floating_dd = acc_balance - acc_equity
-                if floating_dd > 50:  # 🔒 pause if drawdown > $50
-                    equity_guard = True
-
-            can_trade = winrate > 55 and wins >= 10 and acc_balance > 1600 and not equity_guard
-
-            print(f"🔄 Strategy reloaded. can_trade={can_trade} | winrate={winrate:.2f}% | "
-                  f"wins={wins} | account_balance={acc_balance} | equity={acc_equity} | "
-                  f"equity_guard={equity_guard}")
-
-        # skip new trades if cannot trade
-        if not strategy or not can_trade:
-            # still check open flagged trades
-            now = datetime.utcnow()
-            positions = check_positions()
-            for pos in positions:
-                ticket = pos["ticket"]
-                profit = pos["profit"]
-                if ticket in flagged_trades:
-                    opened = flagged_trades[ticket]["open_time"]
-                    if now - opened > timedelta(minutes=5):
-                        if profit > 0:
-                            print(f"💰 Closing trade {ticket} with profit={profit}")
-                            result = close_trade(ticket)
-                            print("CLOSE RESULT:", result)
-                            flagged_trades.pop(ticket, None)
-                        else:
-                            print(f"⚠️ Trade {ticket} still in loss after 5min, waiting for profit...")
+        # --- Reload strategy each second ---
+        strategy = load_strategy()
+        symbol = strategy.get("symbol")
+        if not symbol:
+            print("❌ No symbol in strategy.json")
             time.sleep(1)
             continue
 
-        # ----------------------------
-        # Get candles
-        # ----------------------------
+        # Auto lot sizing
+        if any(x in symbol.upper() for x in ["BTC", "ETH", "XAU"]):
+            lot = 0.01
+        else:
+            lot = 0.1
+
         sl_pct = strategy.get("sl_pct", 0.005)
         tp_pct = strategy.get("tp_pct", 0.01)
-        lot = 0.005 if any(x in symbol.upper() for x in ["BTC", "ETH", "XAU"]) else 0.05
+        can_trade = strategy.get("winrate", 0) >= 50
 
-        url = f"{SERVER_URL}/candles?symbol={symbol}&timeframe=M1&count=200"
-        resp = requests.get(url, timeout=10)
+        print(f"📌 Strategy reloaded | Symbol={symbol} | lot={lot} | can_trade={can_trade}")
+
+        # --- Fetch candles ---
+        resp = requests.get(f"{SERVER_URL}/candles?symbol={symbol}&timeframe=M1&count=200", timeout=10)
         candles = resp.json().get("candles", [])
         if not candles:
+            print("⚠️ No candles returned")
             time.sleep(1)
             continue
 
@@ -142,56 +118,74 @@ while True:
         df["EMA_slow"] = df["close"].ewm(span=strategy["ema_slow"], adjust=False).mean()
 
         last = df.iloc[-1]
-        signal = None
-        if last["EMA_fast"] > last["EMA_slow"] and last["RSI"] < strategy["rsi_buy"]:
-            signal = "BUY"
-        elif last["EMA_fast"] < last["EMA_slow"] and last["RSI"] > strategy["rsi_sell"]:
-            signal = "SELL"
 
-        if signal:
-            entry_price = last["close"]
-            if signal == "BUY":
-                sl = entry_price * (1 - sl_pct)
-                tp = entry_price * (1 + tp_pct)
-            else:
-                sl = entry_price * (1 + sl_pct)
-                tp = entry_price * (1 - tp_pct)
+        print(f"🕒 Candle {last['time']} | O={last['open']} H={last['high']} L={last['low']} C={last['close']}")
 
-            print(f"✅ {signal} at {last['time']} | Price={entry_price:.2f} | SL={sl:.2f} | TP={tp:.2f}")
-
-            payload = {"symbol": symbol, "action": signal, "lot": lot, "sl": sl, "tp": tp}
-            trade_resp = requests.post(f"{SERVER_URL}/trade", json=payload, timeout=10).json()
-            print("📤 Trade request sent:", trade_resp)
-
-            if trade_resp.get("status") == "success":
-                ticket = trade_resp["details"].get("order") or trade_resp["details"].get("position")
-                if ticket:
-                    flagged_trades[ticket] = {"open_time": datetime.utcnow()}
-                    print(f"🎯 Tracking trade ticket {ticket}")
-
+        # --- Prevent duplicate trades in same candle ---
+        if last_candle_time == last["time"]:
+            print("⏸ Already processed this candle, skipping...")
         else:
-            print(f"ℹ️ No signal at {last['time']} | Price={last['close']}")
+            last_candle_time = last["time"]
 
-        # ----------------------------
-        # Manage flagged trades
-        # ----------------------------
-        now = datetime.utcnow()
-        positions = check_positions()
-        for pos in positions:
-            ticket = pos["ticket"]
-            profit = pos["profit"]
-            if ticket in flagged_trades:
-                opened = flagged_trades[ticket]["open_time"]
-                if now - opened > timedelta(minutes=5):
-                    if profit > 0:
-                        print(f"💰 Closing trade {ticket} with profit={profit}")
-                        result = close_trade(ticket)
-                        print("CLOSE RESULT:", result)
-                        flagged_trades.pop(ticket, None)
+            # --- Generate signal ---
+            signal = None
+            if last["EMA_fast"] > last["EMA_slow"] and last["RSI"] < strategy["rsi_buy"]:
+                signal = "BUY"
+            elif last["EMA_fast"] < last["EMA_slow"] and last["RSI"] > strategy["rsi_sell"]:
+                signal = "SELL"
+
+            if signal:
+                if not can_trade:
+                    print("🚫 Strategy winrate < 50, skipping trade")
+                else:
+                    entry_price = last["close"]
+                    if signal == "BUY":
+                        sl = entry_price * (1 - sl_pct)
+                        tp = entry_price * (1 + tp_pct)
                     else:
-                        print(f"⚠️ Trade {ticket} still in loss after 5min, waiting for profit...")
+                        sl = entry_price * (1 + sl_pct)
+                        tp = entry_price * (1 - tp_pct)
+
+                    print(f"✅ Signal {signal} | Entry={entry_price:.2f} | SL={sl:.2f} | TP={tp:.2f}")
+
+                    payload = {"symbol": symbol, "action": signal, "lot": lot, "sl": sl, "tp": tp}
+                    trade_resp = requests.post(f"{SERVER_URL}/trade", json=payload, timeout=10).json()
+                    print("📤 Trade request:", trade_resp)
+
+                    if trade_resp.get("status") == "success":
+                        ticket = trade_resp["details"].get("order") or trade_resp["details"].get("position")
+                        if ticket:
+                            flagged_trades[ticket] = {"open_time": datetime.utcnow()}
+                            trade_summary["total_trades"] += 1
+                            save_summary()
+                            print(f"🎯 Tracking trade ticket {ticket}")
+            else:
+                print("ℹ️ No signal matched")
+
+        # --- Manage flagged trades every 5 sec ---
+        if pos_check_counter % 5 == 0:
+            positions = check_positions()
+            now = datetime.utcnow()
+
+            for pos in positions:
+                ticket = pos["ticket"]
+                profit = pos["profit"]
+
+                if ticket in flagged_trades:
+                    opened = flagged_trades[ticket]["open_time"]
+                    if now - opened > timedelta(minutes=5):
+                        if AUTO_CLOSE:
+                            if profit > 0:
+                                print(f"💰 Closing trade {ticket} with profit={profit}")
+                                result = close_trade(ticket)
+                                print("CLOSE RESULT:", result)
+                                flagged_trades.pop(ticket, None)
+                            else:
+                                print(f"⚠️ Trade {ticket} still in loss after 5min, waiting...")
+
+        pos_check_counter += 1
 
     except Exception as e:
         print(f"❌ Error: {e}")
 
-    time.sleep(1)  # run fast loop
+    time.sleep(1)
